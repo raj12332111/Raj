@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aviator Game - Enhanced</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #1e1e1e;
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+        .game-container {
+            margin: 50px auto;
+            padding: 20px;
+            width: 400px;
+            background: #252525;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+        .balance, .multiplier {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .plane {
+            width: 50px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 20px;
+        }
+        input, select {
+            padding: 5px;
+            font-size: 16px;
+            text-align: center;
+            border: none;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px;
+            font-size: 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .history, .leaderboard {
+            margin-top: 20px;
+            text-align: left;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <h1>Aviator Game ✈️</h1>
+        <div class="balance">Balance: $<span id="balance">100</span></div>
+        <label>Bet Amount: $</label>
+        <input type="number" id="betAmount" value="10" min="1" max="100">
+        <label>Risk Level:</label>
+        <select id="riskLevel">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+        </select>
+        <br>
+        <button id="bet">Place Bet</button>
+        <button id="cashout" disabled>Cash Out</button>
+        <button id="autoBet">Auto Bet</button>
+        <button id="stopAuto" disabled>Stop Auto</button>
+        <div class="multiplier">Multiplier: <span id="multiplier">1.00x</span></div>
+        <p id="result"></p>
+        <div class="history">
+            <h3>Betting History 🏆</h3>
+            <ul id="betHistory"></ul>
+        </div>
+        <div class="leaderboard">
+            <h3>Leaderboard 🏅</h3>
+            <ul id="leaderboard"></ul>
+        </div>
+    </div>
+
+    <img src="https://cdn-icons-png.flaticon.com/512/1985/1985470.png" class="plane" id="plane" alt="plane">
+
+    <audio id="crashSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
+    <audio id="cashoutSound" src="https://www.soundjay.com/button/beep-05.wav"></audio>
+
+    <script>
+        let balance = 100;
+        let betAmount = 10;
+        let multiplier = 1.00;
+        let isRunning = false;
+        let crashPoint;
+        let interval;
+        let cashedOut = false;
+        let history = [];
+        let autoBet = false;
+
+        function startGame() {
+            isRunning = true;
+            let risk = document.getElementById("riskLevel").value;
+            crashPoint = risk === "low" ? (Math.random() * 5 + 2).toFixed(2) :
+                         risk === "medium" ? (Math.random() * 10 + 2).toFixed(2) :
+                         (Math.random() * 20 + 2).toFixed(2);
+
+            cashedOut = false;
+            document.getElementById("multiplier").innerText = "1.00x";
+
+            interval = setInterval(() => {
+                if (multiplier >= crashPoint) {
+                    clearInterval(interval);
+                    isRunning = false;
+                    if (!cashedOut) {
+                        document.getElementById("result").innerText = `🔥 Crashed at ${crashPoint}x! You lost!`;
+                        document.getElementById("crashSound").play();
+                    }
+                    setTimeout(resetGame, 2000);
+                } else {
+                    multiplier += 0.05;
+                    document.getElementById("multiplier").innerText = multiplier.toFixed(2) + "x";
+                }
+            }, 200);
+        }
+
+        function cashOut() {
+            if (isRunning) {
+                clearInterval(interval);
+                isRunning = false;
+                cashedOut = true;
+                let winAmount = (betAmount * multiplier).toFixed(2);
+                balance += parseFloat(winAmount);
+                document.getElementById("balance").innerText = balance.toFixed(2);
+                document.getElementById("cashoutSound").play();
+                document.getElementById("result").innerText = `✅ Cashed out at ${multiplier.toFixed(2)}x, won $${winAmount}!`;
+                setTimeout(resetGame, 2000);
+            }
+let username = prompt("Enter your username:");
+if (!username) username = "Player" + Math.floor(Math.random() * 1000);
+
+fetch(`get_balance.php?username=${username}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.balance) {
+            document.getElementById("balance").innerText = data.balance;
+        } else {
+            fetch("register.php", { method: "POST", body: new URLSearchParams({ username }) });
+        }
+    });
+
+document.getElementById("bet").addEventListener("click", () => {
+    let betAmount = parseFloat(document.getElementById("betAmount").value);
+    
+    fetch("place_bet.php", {
+        method: "POST",
+        body: new URLSearchParams({ username, bet_amount: betAmount }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "success") {
+            document.getElementById("balance").innerText = data.new_balance;
+            startGame();
+        } else {
+            alert(data.message);
+        }
+    });
+});
+
+document.getElementById("cashout").addEventListener("click", () => {
+    let betAmount = parseFloat(document.getElementById("betAmount").value);
+    let multiplier = parseFloat(document.getElementById("multiplier").innerText);
+
+    fetch("cashout.php", {
+        method: "POST",
+        body: new URLSearchParams({ username, bet_amount: betAmount, multiplier }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "success") {
+            document.getElementById("balance").innerText = parseFloat(document.getElementById("balance").innerText) + data.win_amount;
+        } else {
+            alert(data.message);
+        }
+    });
+});
+
+function loadLeaderboard() {
+    fetch("leaderboard.php")
+        .then(response => response.json())
+        .then(data => {
+            let leaderboard = document.getElementById("leaderboard");
+            leaderboard.innerHTML = "";
+            data.forEach((player, index) => {
+                let listItem = document.createElement("li");
+                listItem.innerText = `${index + 1}. ${player.username} - $${player.total_winnings}`;
+                leaderboard.appendChild(listItem);
+            });
+        });
+}
+
+setInterval(loadLeaderboard, 5000);
+
+        }
+
+        function resetGame() {
+            isRunning = false;
+            multiplier = 1.00;
+            document.getElementById("multiplier").innerText = "1.00x";
+        }
+
+        document.getElementById("bet").addEventListener("click", () => {
+            betAmount = parseFloat(document.getElementById("betAmount").value);
+            if (betAmount > 0 && betAmount <= balance) {
+                balance -= betAmount;
+                document.getElementById("balance").innerText = balance.toFixed(2);
+                startGame();
+            }
+        });
+
+        document.getElementById("cashout").addEventListener("click", cashOut);
+
+        document.getElementById("autoBet").addEventListener("click", () => {
+            autoBet = true;
+            document.getElementById("stopAuto").disabled = false;
+            let autoInterval = setInterval(() => {
+                if (!autoBet) {
+                    clearInterval(autoInterval);
+                    return;
+                }
+                document.getElementById("bet").click();
+                setTimeout(() => document.getElementById("cashout").click(), Math.random() * 4000 + 1000);
+            }, 5000);
+        });
+
+        document.getElementById("stopAuto").addEventListener("click", () => {
+            autoBet = false;
+            document.getElementById("stopAuto").disabled = true;
+        });
+
+    </script>
+</body>
+</html>
